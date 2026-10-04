@@ -6,7 +6,7 @@ app = Flask(__name__)
 def init_db():
     conn = sqlite3.connect('complaints.db')
     cursor = conn.cursor()
-    # Drop old table structure if it exists so it updates cleanly
+    # Drops existing table structure so columns update cleanly
     cursor.execute('DROP TABLE IF EXISTS complaints')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS complaints (
@@ -35,7 +35,8 @@ def submit():
     conn.commit()
     conn.close()
 
-    return f"<h3>Complaint registered successfully for location: {location}! <a href='/'>Submit another</a></h3>"
+    return f"<h3>Complaint registered successfully for location: {location}! <a href='/'>Submit another</a> | <a href='/admin'>View Admin Dashboard</a></h3>"
+
 @app.route('/admin')
 def admin():
     conn = sqlite3.connect('complaints.db')
@@ -76,6 +77,8 @@ def admin():
                 </tr>
                 {% endfor %}
             </table>
+            <br>
+            <a href="/">← Back to Submit Form</a>
         </div>
     </body>
     </html>
