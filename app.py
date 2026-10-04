@@ -6,6 +6,8 @@ app = Flask(__name__)
 def init_db():
     conn = sqlite3.connect('complaints.db')
     cursor = conn.cursor()
+    # Drop old table structure if it exists so it updates cleanly
+    cursor.execute('DROP TABLE IF EXISTS complaints')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS complaints (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
