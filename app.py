@@ -34,7 +34,6 @@ def submit():
     conn.close()
 
     return f"<h3>Complaint registered successfully for location: {location}! <a href='/'>Submit another</a></h3>"
-
 @app.route('/admin')
 def admin():
     conn = sqlite3.connect('complaints.db')
