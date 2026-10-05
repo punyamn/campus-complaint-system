@@ -1,13 +1,12 @@
-from flask import Flask, request, render_template_string, render_template
+from flask import Flask, render_template, request, redirect, url_for
 import sqlite3
 
 app = Flask(__name__)
 
+# Initialize database and ensure correct table schema exists
 def init_db():
     conn = sqlite3.connect('complaints.db')
     cursor = conn.cursor()
-    # Drops existing table structure so columns update cleanly
-    cursor.execute('DROP TABLE IF EXISTS complaints')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS complaints (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,72 +17,91 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Run database setup on server startup
 init_db()
 
+# 1. Main Home Page Route (Shows Complaint Submission Form)
 @app.route('/')
 def home():
-    return render_template('test1.html')
+    return render_template('index.html')
 
+# 2. Form Submission Route
 @app.route('/submit', methods=['POST'])
 def submit():
     issue = request.form.get('issue')
     location = request.form.get('location')
 
-    conn = sqlite3.connect('complaints.db')
-    cursor = conn.cursor()
-    cursor.execute('INSERT INTO complaints (issue, location) VALUES (?, ?)', (issue, location))
-    conn.commit()
-    conn.close()
+    if issue and location:
+        conn = sqlite3.connect('complaints.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO complaints (issue, location) VALUES (?, ?)',
+            (issue, location)
+        )
+        conn.commit()
+        conn.close()
 
-    return f"<h3>Complaint registered successfully for location: {location}! <a href='/'>Submit another</a> | <a href='/admin'>View Admin Dashboard</a></h3>"
+    # Redirect to admin dashboard after successful submission
+    return redirect(url_for('admin'))
 
+# 3. Admin Dashboard Route (Styled Dark-Mode View)
 @app.route('/admin')
 def admin():
     conn = sqlite3.connect('complaints.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM complaints')
-    rows = cursor.fetchall()
+    cursor.execute('SELECT * FROM complaints ORDER BY id DESC')
+    data = cursor.fetchall()
     conn.close()
 
-    admin_html = '''
+    rows = ""
+    if data:
+        for row in data:
+            rows += f"<tr><td>#{row[0]}</td><td>{row[1]}</td><td>{row[2]}</td></tr>"
+    else:
+        rows = '<tr><td colspan="3" style="text-align: center; color: #64748b;">No complaints logged yet.</td></tr>'
+
+    html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-        <title>Admin Dashboard</title>
-        <style>
-            body { font-family: sans-serif; background: #f8fafc; padding: 40px; }
-            .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-            h2 { color: #1e293b; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { text-align: left; padding: 12px; border-bottom: 1px solid #e2e8f0; }
-            th { background-color: #f1f5f9; color: #475569; }
-            tr:hover { background-color: #f8fafc; }
-        </style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Admin Dashboard - CampusFix</title>
+        <link rel="stylesheet" href="/static/style.css">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     </head>
     <body>
-        <div class="container">
-            <h2>Admin Complaint Dashboard</h2>
-            <table>
-                <tr>
-                    <th>ID</th>
-                    <th>Issue Description</th>
-                    <th>Location</th>
-                </tr>
-                {% for row in rows %}
-                <tr>
-                    <td>{{ row[0] }}</td>
-                    <td>{{ row[1] }}</td>
-                    <td>{{ row[2] }}</td>
-                </tr>
-                {% endfor %}
-            </table>
-            <br>
-            <a href="/">← Back to Submit Form</a>
+        <div class="page-wrapper">
+            <header class="navbar">
+                <div class="logo">⚡ Campus<span>Fix</span></div>
+                <a href="/" class="nav-link">← Back to Form</a>
+            </header>
+
+            <main class="content-container">
+                <div class="table-card">
+                    <div class="card-header">
+                        <h2>Submitted Complaints</h2>
+                        <p>Live administrative view of all student infrastructure tickets.</p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Issue Description</th>
+                                <th>Location</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows}
+                        </tbody>
+                    </table>
+                </div>
+            </main>
         </div>
     </body>
     </html>
-    '''
-    return render_template_string(admin_html, rows=rows)
+    """
+    return html
 
 if __name__ == '__main__':
     app.run(debug=True)
